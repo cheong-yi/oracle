@@ -1306,7 +1306,7 @@ describe("performSessionRun", () => {
     });
   });
 
-  test("keeps session running when browser connection is lost", async () => {
+  test("keeps session running without synthesizing reattach when browser connection is lost", async () => {
     const automationError = new BrowserAutomationError(
       "Chrome DevTools client disconnected before oracle finished; the browser target appears still alive.",
       {
@@ -1340,8 +1340,6 @@ describe("performSessionRun", () => {
       );
       throw automationError;
     });
-    vi.mocked(resumeBrowserSession).mockRejectedValueOnce(new Error("target not ready"));
-
     await performSessionRun({
       sessionMeta: baseSessionMeta,
       runOptions: baseRunOptions,
@@ -1353,7 +1351,7 @@ describe("performSessionRun", () => {
       version: cliVersion,
     });
 
-    expect(vi.mocked(resumeBrowserSession)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(resumeBrowserSession)).not.toHaveBeenCalled();
     const finalUpdate = sessionStoreMock.updateSession.mock.calls.at(-1)?.[1];
     expect(finalUpdate).toMatchObject({
       status: "running",
@@ -1373,7 +1371,7 @@ describe("performSessionRun", () => {
       "Chrome disconnected before completion; keeping session running for reattach.",
     );
     expect(logLines).toContain("oracle session sess-1 --render");
-    expect(logLines).toContain("Auto-reattach attempt 1");
+    expect(logLines).toContain("Skipping auto-reattach: interval is disabled.");
   });
 
   test("skips auto-reattach when disconnect is classified non-recoverable", async () => {
@@ -1416,7 +1414,73 @@ describe("performSessionRun", () => {
     });
   });
 
-  test("connection-loss recovery is one-shot by default (no infinite retry loop)", async () => {
+  test("does not auto-reattach a recoverable connection loss when automatic recovery is disabled", async () => {
+    const automationError = new BrowserAutomationError("recoverable disconnect", {
+      stage: "connection-lost",
+      recoverableDisconnect: true,
+      runtime: {
+        chromePort: 9222,
+        chromeHost: "127.0.0.1",
+        tabUrl: "https://chatgpt.com/c/demo",
+        promptSubmitted: true,
+      },
+    });
+    vi.mocked(runBrowserSessionExecution).mockRejectedValueOnce(automationError);
+
+    await performSessionRun({
+      sessionMeta: baseSessionMeta,
+      runOptions: baseRunOptions,
+      mode: "browser",
+      browserConfig: {
+        chromePath: null,
+        noAutomaticRecovery: true,
+        autoReattachIntervalMs: 1000,
+      },
+      cwd: "/tmp",
+      log,
+      write,
+      version: cliVersion,
+    });
+
+    expect(vi.mocked(resumeBrowserSession)).not.toHaveBeenCalled();
+    expect(sessionStoreMock.updateSession.mock.calls.at(-1)?.[1]).toMatchObject({
+      status: "running",
+      response: { status: "running", incompleteReason: "chrome-disconnected" },
+    });
+  });
+
+  test("does not synthesize a connection-loss retry when the interval is zero", async () => {
+    const automationError = new BrowserAutomationError("recoverable disconnect", {
+      stage: "connection-lost",
+      recoverableDisconnect: true,
+      runtime: {
+        chromePort: 9222,
+        chromeHost: "127.0.0.1",
+        tabUrl: "https://chatgpt.com/c/demo",
+        promptSubmitted: true,
+      },
+    });
+    vi.mocked(runBrowserSessionExecution).mockRejectedValueOnce(automationError);
+
+    await performSessionRun({
+      sessionMeta: baseSessionMeta,
+      runOptions: baseRunOptions,
+      mode: "browser",
+      browserConfig: {
+        chromePath: null,
+        noAutomaticRecovery: false,
+        autoReattachIntervalMs: 0,
+      },
+      cwd: "/tmp",
+      log,
+      write,
+      version: cliVersion,
+    });
+
+    expect(vi.mocked(resumeBrowserSession)).not.toHaveBeenCalled();
+  });
+
+  test("connection-loss recovery stays disabled when no interval is configured", async () => {
     const automationError = new BrowserAutomationError(
       "Chrome DevTools client disconnected before oracle finished; the browser target appears still alive.",
       {
@@ -1435,8 +1499,6 @@ describe("performSessionRun", () => {
     vi.mocked(runBrowserSessionExecution).mockImplementationOnce(async () => {
       throw automationError;
     });
-    vi.mocked(resumeBrowserSession).mockRejectedValueOnce(new Error("target not ready yet"));
-
     await performSessionRun({
       sessionMeta: baseSessionMeta,
       runOptions: baseRunOptions,
@@ -1448,10 +1510,9 @@ describe("performSessionRun", () => {
       version: cliVersion,
     });
 
-    expect(vi.mocked(resumeBrowserSession)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(resumeBrowserSession)).not.toHaveBeenCalled();
     const logLines = log.mock.calls.map((c) => String(c[0])).join("\n");
-    expect(logLines).toContain("Auto-reattach will try up to 1 attempt(s).");
-    expect(logLines).toContain("Auto-reattach stopped after 1 attempt(s)");
+    expect(logLines).toContain("Skipping auto-reattach: interval is disabled.");
     const finalUpdate = sessionStoreMock.updateSession.mock.calls.at(-1)?.[1];
     expect(finalUpdate).toMatchObject({
       status: "running",
@@ -1508,7 +1569,11 @@ describe("performSessionRun", () => {
       sessionMeta: baseSessionMeta,
       runOptions: baseRunOptions,
       mode: "browser",
-      browserConfig: { chromePath: null },
+      browserConfig: {
+        chromePath: null,
+        noAutomaticRecovery: false,
+        autoReattachIntervalMs: 1000,
+      },
       cwd: "/tmp",
       log,
       write,
@@ -1903,6 +1968,40 @@ describe("performSessionRun", () => {
       }),
     });
     expect(vi.mocked(sendSessionNotification)).toHaveBeenCalled();
+  });
+
+  test("does not auto-reattach after assistant timeout when automatic recovery is disabled", async () => {
+    const automationError = new BrowserAutomationError("assistant timed out", {
+      stage: "assistant-timeout",
+      runtime: {
+        chromePort: 9222,
+        chromeHost: "127.0.0.1",
+        tabUrl: "https://chatgpt.com/c/demo",
+        promptSubmitted: true,
+      },
+    });
+    vi.mocked(runBrowserSessionExecution).mockRejectedValueOnce(automationError);
+
+    await performSessionRun({
+      sessionMeta: baseSessionMeta,
+      runOptions: baseRunOptions,
+      mode: "browser",
+      browserConfig: {
+        chromePath: null,
+        noAutomaticRecovery: true,
+        autoReattachIntervalMs: 1000,
+      },
+      cwd: "/tmp",
+      log,
+      write,
+      version: cliVersion,
+    });
+
+    expect(vi.mocked(resumeBrowserSession)).not.toHaveBeenCalled();
+    expect(sessionStoreMock.updateSession.mock.calls.at(-1)?.[1]).toMatchObject({
+      status: "error",
+      response: { status: "incomplete", incompleteReason: "incomplete-capture" },
+    });
   });
 
   test("auto-reattach stops after a hard cap when it cannot capture an answer", async () => {

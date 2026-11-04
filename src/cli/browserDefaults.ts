@@ -27,6 +27,7 @@ export interface BrowserDefaultsOptions {
   browserAutoReattachDelay?: string | number;
   browserAutoReattachInterval?: string | number;
   browserAutoReattachTimeout?: string | number;
+  browserNoAutomaticRecovery?: boolean;
   browserCookieWait?: string | number;
   browserPort?: number;
   browserHeadless?: boolean;
@@ -127,6 +128,9 @@ export function applyBrowserDefaultsFromConfig(
   }
   if (isUnset("browserAutoReattachTimeout") && typeof browser.autoReattachTimeoutMs === "number") {
     options.browserAutoReattachTimeout = String(browser.autoReattachTimeoutMs);
+  }
+  if (isUnset("browserNoAutomaticRecovery") && typeof browser.noAutomaticRecovery === "boolean") {
+    options.browserNoAutomaticRecovery = browser.noAutomaticRecovery;
   }
   if (isUnset("browserCookieWait") && typeof browser.cookieSyncWaitMs === "number") {
     options.browserCookieWait = String(browser.cookieSyncWaitMs);

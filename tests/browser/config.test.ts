@@ -7,12 +7,14 @@ import { CHATGPT_URL, DEEP_RESEARCH_DEFAULT_TIMEOUT_MS } from "../../src/browser
 describe("resolveBrowserConfig", () => {
   const originalProfileDir = process.env.ORACLE_BROWSER_PROFILE_DIR;
   const originalMaxTabs = process.env.ORACLE_BROWSER_MAX_CONCURRENT_TABS;
+  const originalNoAutomaticRecovery = process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY;
 
   beforeEach(() => {
     // Isolate from the caller's environment: a developer/CI export of the max-tabs
     // override must not leak into tests that assert built-in defaults. afterEach
     // below still restores the caller's original value once the suite finishes.
     delete process.env.ORACLE_BROWSER_MAX_CONCURRENT_TABS;
+    delete process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY;
   });
 
   afterEach(() => {
@@ -25,6 +27,11 @@ describe("resolveBrowserConfig", () => {
       delete process.env.ORACLE_BROWSER_MAX_CONCURRENT_TABS;
     } else {
       process.env.ORACLE_BROWSER_MAX_CONCURRENT_TABS = originalMaxTabs;
+    }
+    if (originalNoAutomaticRecovery === undefined) {
+      delete process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY;
+    } else {
+      process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY = originalNoAutomaticRecovery;
     }
   });
 
@@ -41,6 +48,25 @@ describe("resolveBrowserConfig", () => {
     expect(resolved.maxConcurrentTabs).toBe(3);
     expect(resolved.researchMode).toBe("off");
     expect(resolved.archiveConversations).toBe("auto");
+    expect(resolved.noAutomaticRecovery).toBe(false);
+  });
+
+  test("resolves noAutomaticRecovery with config over strict 1|0 env over false", () => {
+    process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY = "1";
+    expect(resolveBrowserConfig(undefined).noAutomaticRecovery).toBe(true);
+    expect(resolveBrowserConfig({ noAutomaticRecovery: false }).noAutomaticRecovery).toBe(false);
+
+    process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY = "0";
+    expect(resolveBrowserConfig(undefined).noAutomaticRecovery).toBe(false);
+    expect(resolveBrowserConfig({ noAutomaticRecovery: true }).noAutomaticRecovery).toBe(true);
+
+    for (const malformed of ["true", "false", "yes", "2", " 1 "]) {
+      process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY = malformed;
+      expect(resolveBrowserConfig(undefined).noAutomaticRecovery).toBe(false);
+    }
+    expect(resolveBrowserConfig({ noAutomaticRecovery: "1" } as never).noAutomaticRecovery).toBe(
+      false,
+    );
   });
 
   test("applies overrides", () => {

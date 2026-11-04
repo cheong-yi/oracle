@@ -52,6 +52,8 @@ export interface BrowserConfigDefaults {
   autoReattachIntervalMs?: number;
   /** Time budget for each auto-reattach attempt. */
   autoReattachTimeoutMs?: number;
+  /** Disable automatic recovery or prompt re-dispatch after the first submission attempt. */
+  noAutomaticRecovery?: boolean;
   cookieSyncWaitMs?: number;
   headless?: boolean;
   hideWindow?: boolean;
@@ -289,6 +291,7 @@ function sanitizeProjectConfig(config: UserConfig): UserConfig {
       "autoReattachDelayMs",
       "autoReattachIntervalMs",
       "autoReattachTimeoutMs",
+      "noAutomaticRecovery",
       "cookieSyncWaitMs",
       "hideWindow",
       "keepBrowser",

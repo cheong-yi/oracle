@@ -46,6 +46,7 @@ export const DEFAULT_BROWSER_CONFIG: ResolvedBrowserConfig = {
   autoReattachDelayMs: 0,
   autoReattachIntervalMs: 0,
   autoReattachTimeoutMs: 120_000,
+  noAutomaticRecovery: false,
   cookieSync: true,
   cookieNames: DEFAULT_CHATGPT_COOKIE_NAMES,
   cookieSyncWaitMs: 0,
@@ -81,6 +82,11 @@ export function resolveBrowserConfig(
   const envMaxConcurrentTabs = parseMaxConcurrentTabs(
     process.env.ORACLE_BROWSER_MAX_CONCURRENT_TABS,
   );
+  const envNoAutomaticRecovery = parseStrictBooleanEnv(
+    process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY,
+  );
+  const configuredNoAutomaticRecovery =
+    typeof config?.noAutomaticRecovery === "boolean" ? config.noAutomaticRecovery : undefined;
   const rawUrl = config?.chatgptUrl ?? config?.url ?? DEFAULT_BROWSER_CONFIG.url;
   const normalizedUrl = normalizeChatgptUrl(
     rawUrl ?? DEFAULT_BROWSER_CONFIG.url,
@@ -128,6 +134,10 @@ export function resolveBrowserConfig(
       config?.autoReattachIntervalMs ?? DEFAULT_BROWSER_CONFIG.autoReattachIntervalMs,
     autoReattachTimeoutMs:
       config?.autoReattachTimeoutMs ?? DEFAULT_BROWSER_CONFIG.autoReattachTimeoutMs,
+    noAutomaticRecovery:
+      configuredNoAutomaticRecovery ??
+      envNoAutomaticRecovery ??
+      DEFAULT_BROWSER_CONFIG.noAutomaticRecovery,
     cookieSync: config?.cookieSync ?? cookieSyncDefault,
     cookieNames: config?.cookieNames ?? DEFAULT_BROWSER_CONFIG.cookieNames,
     cookieSyncWaitMs: config?.cookieSyncWaitMs ?? DEFAULT_BROWSER_CONFIG.cookieSyncWaitMs,
@@ -160,6 +170,12 @@ export function resolveBrowserConfig(
     manualLoginCookieSync:
       config?.manualLoginCookieSync ?? DEFAULT_BROWSER_CONFIG.manualLoginCookieSync,
   };
+}
+
+function parseStrictBooleanEnv(raw?: string | null): boolean | undefined {
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return undefined;
 }
 
 function normalizeResearchMode(value: unknown): "off" | "deep" {

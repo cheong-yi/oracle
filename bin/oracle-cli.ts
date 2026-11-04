@@ -134,6 +134,7 @@ interface CliOptions extends OptionValues {
   browserProfileLockTimeout?: string;
   browserMaxConcurrentTabs?: string;
   browserCookieWait?: string;
+  browserNoAutomaticRecovery?: boolean;
   browserNoCookieSync?: boolean;
   browserInlineCookiesFile?: string;
   browserCookieNames?: string;
@@ -707,6 +708,14 @@ program
       "--browser-auto-reattach-timeout <ms|s|m|h>",
       "Time budget for each auto-reattach attempt (default 120s).",
     ).hideHelp(),
+  )
+  .addOption(
+    new Option(
+      "--browser-no-automatic-recovery",
+      "Disable automatic browser recovery and prompt re-dispatch after the first submission attempt.",
+    )
+      .default(undefined)
+      .hideHelp(),
   )
   .addOption(
     new Option(
@@ -2744,6 +2753,10 @@ function printDebugHelp(cliName: string): void {
       "Interval between auto-reattach attempts (0 disables).",
     ],
     ["--browser-auto-reattach-timeout <ms|s|m|h>", "Time budget for each auto-reattach attempt."],
+    [
+      "--browser-no-automatic-recovery",
+      "Disable automatic recovery and prompt re-dispatch after the first submission attempt.",
+    ],
     [
       "--browser-cookie-wait <ms|s|m>",
       "Wait before retrying cookie sync when Chrome cookies are empty or locked.",

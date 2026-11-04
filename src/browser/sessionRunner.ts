@@ -180,10 +180,11 @@ export async function runBrowserSessionExecution(
   const automationLogger: BrowserLogger = ((message?: string) => {
     if (typeof message !== "string") return;
     const shouldAlwaysPrint =
-      message.startsWith("[browser] ") &&
-      /archive|fallback|follow-up|retry|thinking|waiting for chatgpt|browser slot|browser control|browser guidance|model selection|model picker/i.test(
-        message,
-      );
+      message.startsWith("ORACLE_PROMPT_COMMIT_DIAGNOSTIC ") ||
+      (message.startsWith("[browser] ") &&
+        /archive|fallback|follow-up|retry|thinking|waiting for chatgpt|browser slot|browser control|browser guidance|model selection|model picker/i.test(
+          message,
+        ));
     if (!runOptions.verbose && !shouldAlwaysPrint) return;
     log(message);
   }) as BrowserLogger;

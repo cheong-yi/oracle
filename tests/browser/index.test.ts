@@ -679,6 +679,35 @@ describe("shouldPreferSystemTmpDirForTest", () => {
 });
 
 describe("runSubmissionWithRecoveryForTest", () => {
+  test.each([
+    ["dead composer", new BrowserAutomationError("dead composer", { code: "dead-composer" })],
+    [
+      "prompt fallback",
+      new BrowserAutomationError("prompt too large", { code: "prompt-too-large" }),
+    ],
+  ])("does not re-dispatch after %s when automatic recovery is disabled", async (_label, error) => {
+    const submit = vi.fn().mockRejectedValue(error);
+    const reloadPromptComposer = vi.fn().mockResolvedValue(undefined);
+    const prepareFallbackSubmission = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      runSubmissionWithRecoveryForTest({
+        prompt: "inline prompt",
+        attachments: [],
+        fallbackSubmission: { prompt: "fallback prompt", attachments: [] },
+        submit,
+        reloadPromptComposer,
+        prepareFallbackSubmission,
+        logger: vi.fn<(message: string) => void>(),
+        noAutomaticRecovery: true,
+      }),
+    ).rejects.toBe(error);
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(reloadPromptComposer).not.toHaveBeenCalled();
+    expect(prepareFallbackSubmission).not.toHaveBeenCalled();
+  });
+
   test("preserves prompt-too-large fallback after a dead-composer retry", async () => {
     const submit = vi
       .fn()

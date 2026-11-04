@@ -67,6 +67,7 @@ export interface BrowserFlagOptions {
   browserAutoReattachDelay?: string;
   browserAutoReattachInterval?: string;
   browserAutoReattachTimeout?: string;
+  browserNoAutomaticRecovery?: boolean;
   browserCookieWait?: string;
   browserNoCookieSync?: boolean;
   browserInlineCookiesFile?: string;
@@ -236,6 +237,10 @@ export async function buildBrowserConfig(
     autoReattachTimeoutMs: options.browserAutoReattachTimeout
       ? parseDuration(options.browserAutoReattachTimeout, DEFAULT_BROWSER_AUTO_REATTACH_TIMEOUT_MS)
       : undefined,
+    noAutomaticRecovery:
+      options.browserNoAutomaticRecovery ??
+      parseStrictBooleanEnv(process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY) ??
+      false,
     cookieSyncWaitMs: options.browserCookieWait
       ? parseDuration(options.browserCookieWait, 0)
       : undefined,
@@ -260,6 +265,12 @@ export async function buildBrowserConfig(
     researchMode: options.browserResearch === "deep" ? "deep" : "off",
     archiveConversations: options.browserArchive,
   };
+}
+
+function parseStrictBooleanEnv(raw?: string): boolean | undefined {
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return undefined;
 }
 
 function validateAttachRunningOptions(

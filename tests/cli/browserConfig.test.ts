@@ -2,6 +2,38 @@ import { describe, expect, test } from "vitest";
 import { buildBrowserConfig, resolveBrowserModelLabel } from "../../src/cli/browserConfig.js";
 
 describe("buildBrowserConfig", () => {
+  test("maps the explicit no-automatic-recovery boolean without duration coercion", async () => {
+    expect(
+      await buildBrowserConfig({ model: "gpt-5.5-pro", browserNoAutomaticRecovery: true }),
+    ).toMatchObject({ noAutomaticRecovery: true });
+    expect(
+      await buildBrowserConfig({ model: "gpt-5.5-pro", browserNoAutomaticRecovery: false }),
+    ).toMatchObject({ noAutomaticRecovery: false });
+    expect((await buildBrowserConfig({ model: "gpt-5.5-pro" })).noAutomaticRecovery).toBe(false);
+  });
+
+  test("applies strict environment boolean below explicit options", async () => {
+    const original = process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY;
+    try {
+      process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY = "1";
+      expect((await buildBrowserConfig({ model: "gpt-5.5-pro" })).noAutomaticRecovery).toBe(true);
+      expect(
+        (
+          await buildBrowserConfig({
+            model: "gpt-5.5-pro",
+            browserNoAutomaticRecovery: false,
+          })
+        ).noAutomaticRecovery,
+      ).toBe(false);
+
+      process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY = "true";
+      expect((await buildBrowserConfig({ model: "gpt-5.5-pro" })).noAutomaticRecovery).toBe(false);
+    } finally {
+      if (original === undefined) delete process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY;
+      else process.env.ORACLE_BROWSER_NO_AUTOMATIC_RECOVERY = original;
+    }
+  });
+
   test("uses defaults when optional flags omitted", async () => {
     const config = await buildBrowserConfig({ model: "gpt-5.5-pro" });
     expect(config).toMatchObject({

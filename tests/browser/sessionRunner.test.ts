@@ -401,9 +401,11 @@ describe("runBrowserSessionExecution", () => {
     });
   });
 
-  test("suppresses automation noise when not verbose", async () => {
+  test("prints exact prompt commit diagnostics but suppresses other automation noise", async () => {
     const log = vi.fn();
     const noisyLogger = vi.fn();
+    const diagnostic = 'ORACLE_PROMPT_COMMIT_DIAGNOSTIC {"status":"committed"}';
+    const nearPrefix = 'ORACLE_PROMPT_COMMIT_DIAGNOSTICX {"status":"committed"}';
     await runBrowserSessionExecution(
       {
         runOptions: { ...baseRunOptions, verbose: false },
@@ -424,7 +426,9 @@ describe("runBrowserSessionExecution", () => {
           fallback: null,
         }),
         executeBrowser: async ({ log: automationLog }) => {
+          automationLog?.(diagnostic);
           automationLog?.("Prompt textarea ready");
+          automationLog?.(nearPrefix);
           noisyLogger();
           return {
             answerText: "text",
@@ -442,6 +446,8 @@ describe("runBrowserSessionExecution", () => {
     expect(log.mock.calls.some((call) => /Prompt textarea ready/.test(String(call[0])))).toBe(
       false,
     );
+    expect(log).toHaveBeenCalledWith(diagnostic);
+    expect(log).not.toHaveBeenCalledWith(nearPrefix);
     expect(noisyLogger).toHaveBeenCalled(); // ensure executeBrowser ran
   });
 

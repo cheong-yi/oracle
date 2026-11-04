@@ -607,20 +607,21 @@ export async function performSessionRun({
         log(dim("Skipping auto-reattach: disconnect classified as non-recoverable."));
         return;
       }
-      // Connection-lost should attempt the same recovery path as assistant-timeout.
-      // When auto-reattach interval is unset, still try a single resume so a live
-      // Chrome/target can be harvested instead of leaving the session permanently running.
       const configuredIntervalMs = browserConfig?.autoReattachIntervalMs ?? 0;
-      const connectionLostIntervalMs =
-        configuredIntervalMs > 0
-          ? configuredIntervalMs
-          : Math.max(1_000, Math.min(browserConfig?.timeoutMs ?? 30_000, 30_000));
+      if (browserConfig?.noAutomaticRecovery) {
+        log(dim("Skipping auto-reattach: automatic browser recovery is disabled."));
+        return;
+      }
+      if (configuredIntervalMs <= 0) {
+        log(dim("Skipping auto-reattach: interval is disabled."));
+        return;
+      }
       const success = await autoReattachUntilComplete({
         sessionMeta,
         runtime: recoverableRuntime ?? undefined,
         browserConfig: {
           ...browserConfig,
-          autoReattachIntervalMs: connectionLostIntervalMs,
+          autoReattachIntervalMs: configuredIntervalMs,
           autoReattachDelayMs: browserConfig?.autoReattachDelayMs ?? 0,
           autoReattachTimeoutMs:
             browserConfig?.autoReattachTimeoutMs ?? browserConfig?.timeoutMs ?? 120_000,
@@ -630,7 +631,6 @@ export async function performSessionRun({
         modelForStatus,
         notificationSettings,
         log,
-        maxAttempts: configuredIntervalMs > 0 ? undefined : 1,
       });
       if (success) {
         return;
@@ -671,7 +671,7 @@ export async function performSessionRun({
         },
       });
       const autoReattachIntervalMs = browserConfig?.autoReattachIntervalMs ?? 0;
-      if (autoReattachIntervalMs > 0) {
+      if (!browserConfig?.noAutomaticRecovery && autoReattachIntervalMs > 0) {
         const autoRuntime = runtime ?? currentBrowser?.runtime;
         const success = await autoReattachUntilComplete({
           sessionMeta,
@@ -1136,6 +1136,10 @@ async function autoReattachUntilComplete({
 }): Promise<boolean> {
   if (!runtime || !browserConfig) {
     log(dim("Auto-reattach disabled: missing runtime or browser config."));
+    return false;
+  }
+  if (browserConfig.noAutomaticRecovery) {
+    log(dim("Auto-reattach disabled by browser configuration."));
     return false;
   }
   const delayMs = Math.max(0, browserConfig.autoReattachDelayMs ?? 0);

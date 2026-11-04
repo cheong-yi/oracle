@@ -754,6 +754,7 @@ async function runSubmissionWithRecovery({
   reloadPromptComposer,
   prepareFallbackSubmission,
   logger,
+  noAutomaticRecovery = false,
 }: {
   prompt: string;
   attachments: BrowserAttachment[];
@@ -762,6 +763,7 @@ async function runSubmissionWithRecovery({
   reloadPromptComposer: () => Promise<void>;
   prepareFallbackSubmission: () => Promise<void>;
   logger: BrowserLogger;
+  noAutomaticRecovery?: boolean;
 }): Promise<BrowserSubmissionResult> {
   let currentPrompt = prompt;
   let currentAttachments = attachments;
@@ -772,6 +774,9 @@ async function runSubmissionWithRecovery({
     try {
       return await submit(currentPrompt, currentAttachments);
     } catch (error) {
+      if (noAutomaticRecovery) {
+        throw error;
+      }
       const isDeadComposer = hasBrowserErrorCode(error, "dead-composer");
       if (isDeadComposer && !retriedDeadComposer) {
         retriedDeadComposer = true;
@@ -802,6 +807,7 @@ export async function runSubmissionWithRecoveryForTest(args: {
   reloadPromptComposer: () => Promise<void>;
   prepareFallbackSubmission: () => Promise<void>;
   logger: BrowserLogger;
+  noAutomaticRecovery?: boolean;
 }): Promise<BrowserSubmissionResult> {
   return runSubmissionWithRecovery(args);
 }
@@ -1675,6 +1681,7 @@ export async function runBrowserMode(options: BrowserRunOptions): Promise<Browse
           await raceWithDisconnect(ensurePromptReady(Runtime, config.inputTimeoutMs, logger));
         },
         logger,
+        noAutomaticRecovery: config.noAutomaticRecovery,
       });
       baselineTurns = submission.baselineTurns;
       baselineAssistantText = submission.baselineAssistantText;
@@ -2141,6 +2148,7 @@ export async function runBrowserMode(options: BrowserRunOptions): Promise<Browse
             await raceWithDisconnect(ensurePromptReady(Runtime, config.inputTimeoutMs, logger));
           },
           logger,
+          noAutomaticRecovery: config.noAutomaticRecovery,
         });
         baselineTurns = submission.baselineTurns;
         baselineAssistantText = submission.baselineAssistantText;
@@ -3214,6 +3222,7 @@ async function runRemoteBrowserMode(
         await ensurePromptReady(Runtime, config.inputTimeoutMs, logger);
       },
       logger,
+      noAutomaticRecovery: config.noAutomaticRecovery,
     });
     baselineTurns = submission.baselineTurns;
     baselineAssistantText = submission.baselineAssistantText;
@@ -3632,6 +3641,7 @@ async function runRemoteBrowserMode(
           await ensurePromptReady(Runtime, config.inputTimeoutMs, logger);
         },
         logger,
+        noAutomaticRecovery: config.noAutomaticRecovery,
       });
       baselineTurns = submission.baselineTurns;
       baselineAssistantText = submission.baselineAssistantText;

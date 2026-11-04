@@ -90,6 +90,8 @@ export interface BrowserAutomationConfig {
   autoReattachIntervalMs?: number;
   /** Time budget for each auto-reattach attempt. */
   autoReattachTimeoutMs?: number;
+  /** Disable automatic recovery or prompt re-dispatch after the first submission attempt. */
+  noAutomaticRecovery?: boolean;
   cookieSync?: boolean;
   cookieNames?: string[] | null;
   cookieSyncWaitMs?: number;

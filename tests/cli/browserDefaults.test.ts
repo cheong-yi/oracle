@@ -9,6 +9,26 @@ import type { UserConfig } from "../../src/config.js";
 const source = (_key: keyof BrowserDefaultsOptions) => undefined;
 
 describe("applyBrowserDefaultsFromConfig", () => {
+  test("preserves explicit CLI no-automatic-recovery over config", () => {
+    const options: BrowserDefaultsOptions = { browserNoAutomaticRecovery: true };
+    const config: UserConfig = { browser: { noAutomaticRecovery: false } };
+
+    applyBrowserDefaultsFromConfig(options, config, (key) =>
+      key === "browserNoAutomaticRecovery" ? "cli" : "default",
+    );
+
+    expect(options.browserNoAutomaticRecovery).toBe(true);
+  });
+
+  test("applies configured no-automatic-recovery when CLI is absent", () => {
+    const options: BrowserDefaultsOptions = {};
+    const config: UserConfig = { browser: { noAutomaticRecovery: true } };
+
+    applyBrowserDefaultsFromConfig(options, config, source);
+
+    expect(options.browserNoAutomaticRecovery).toBe(true);
+  });
+
   test("applies chatgptUrl from user config when flags are absent", () => {
     const options: BrowserDefaultsOptions = {};
     const config: UserConfig = {
